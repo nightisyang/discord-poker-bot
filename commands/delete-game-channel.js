@@ -17,9 +17,10 @@ module.exports = {
       // Remove all game channels
       if (
         channel.name === "game" &&
-        channel.parentId === pokerCategory.id &&
-        channel.author.id === "988312167902236672"
+        channel.parentId === pokerCategory.id
+        //  && channel.author.id === "988312167902236672"
       ) {
+        // console.log(channel);
         channel.delete();
 
         // folder path where game session data are kept

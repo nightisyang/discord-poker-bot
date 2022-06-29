@@ -1,5 +1,7 @@
 "use strict";
 
+const { gameComms } = require("../server.js");
+
 // DOM Elements
 // const btnInit = document.querySelector(".btn-init");
 // const btnPlayers = document.querySelector(".btn-players");
@@ -49,7 +51,7 @@ let stalePlayer = [];
 let muckPlayer = [];
 let muckCards = [];
 let gameSessionId;
-let playersId;
+let playersId = [];
 
 const gameStateArr = [
   "reset",
@@ -93,40 +95,40 @@ function addTextBox(text, numLine) {
 
   newLineArr.forEach((val) => (newLineStr += val));
 
-  textbox.value += newLineStr + text;
+  // textbox.value += newLineStr + text;
 
-  const textboxHeight = textbox.scrollHeight;
-  textbox.scrollTop = textbox.scrollHeight;
+  // const textboxHeight = textbox.scrollHeight;
+  // textbox.scrollTop = textbox.scrollHeight;
 }
 
-function addTextBox2(text, numLine) {
-  let n = 0;
-  const speed = 5;
-  let newLineArr = [];
-  let newLineStr = "";
-  for (let i = 0; i < numLine; i++) {
-    newLineArr.push("\n");
-  }
+// function addTextBox2(text, numLine) {
+//   let n = 0;
+//   const speed = 5;
+//   let newLineArr = [];
+//   let newLineStr = "";
+//   for (let i = 0; i < numLine; i++) {
+//     newLineArr.push("\n");
+//   }
 
-  newLineArr.forEach((val) => (newLineStr += val));
+//   newLineArr.forEach((val) => (newLineStr += val));
 
-  const combinedText = newLineStr + text;
+//   const combinedText = newLineStr + text;
 
-  const typeWriter = function () {
-    if (n < text.length) {
-      textbox.value += text.charAt(n);
-      n++;
-      const textboxHeight = textbox.scrollHeight;
-      textbox.scrollTop = textbox.scrollHeight;
-      setTimeout(typeWriter, speed);
-    }
-  };
-  typeWriter();
-}
+//   const typeWriter = function () {
+//     if (n < text.length) {
+//       textbox.value += text.charAt(n);
+//       n++;
+//       const textboxHeight = textbox.scrollHeight;
+//       textbox.scrollTop = textbox.scrollHeight;
+//       setTimeout(typeWriter, speed);
+//     }
+//   };
+//   typeWriter();
+// }
 
-addTextBox2(
-  "Welcome!\n\nThis app is completely built on vanilla javascript and is my first ever coding project! This version runs completely on client-side browser!\n\nIt simulates a complete cycle of a Texas Hold 'em poker game, with basic features i.e. betting, calling, raising, checking, folding and other game logic e.g. determining the hand of a player, comparing player's cards at the end of betting, resolving ties and dealing with tiebreakers, selecting a winner(s), player rotation etc.\n\nAt the end of a game, the winner takes the pot amount and a new game can be started by pressing the Start Game! button at the top.\n\nBalances are brought forward to each game and the game can continue until a player loses their entire balance. The current game number is shown on the top right!\n\nA basic rundown of Texas Hold 'em can be found in the link below.\n\nIn this game, 2 to 10 players can be simulated starting with 1000 balance per player.\n\nPlayers cards are revealed on purpose to demonstrate card evaluation logic.\n\nClick on Start Game! to start a new game! The recommended small blind and big blinds are 1 & 2 usually starting with Player 3 and 2 respectively! The minimum bets are Calls (see above), any bets larger than Calls are Raise.\n\nHave fun!!"
-);
+// addTextBox2(
+//   "Welcome!\n\nThis app is completely built on vanilla javascript and is my first ever coding project! This version runs completely on client-side browser!\n\nIt simulates a complete cycle of a Texas Hold 'em poker game, with basic features i.e. betting, calling, raising, checking, folding and other game logic e.g. determining the hand of a player, comparing player's cards at the end of betting, resolving ties and dealing with tiebreakers, selecting a winner(s), player rotation etc.\n\nAt the end of a game, the winner takes the pot amount and a new game can be started by pressing the Start Game! button at the top.\n\nBalances are brought forward to each game and the game can continue until a player loses their entire balance. The current game number is shown on the top right!\n\nA basic rundown of Texas Hold 'em can be found in the link below.\n\nIn this game, 2 to 10 players can be simulated starting with 1000 balance per player.\n\nPlayers cards are revealed on purpose to demonstrate card evaluation logic.\n\nClick on Start Game! to start a new game! The recommended small blind and big blinds are 1 & 2 usually starting with Player 3 and 2 respectively! The minimum bets are Calls (see above), any bets larger than Calls are Raise.\n\nHave fun!!"
+// );
 
 const resetGame = function () {
   gameState = gameStateArr[0];
@@ -144,7 +146,7 @@ const resetGame = function () {
   });
 
   console.log("Game reset, please initialize game to play!");
-  textbox.value = "Reset! Press Initialize game to start!";
+  // textbox.value = "Reset! Press Initialize game to start!";
 };
 
 const suit = ["Clubs", "Diamonds", "Hearts", "Spades"];
@@ -1126,168 +1128,168 @@ const StalePlayers = class {
   }
 };
 
-const updateUI = new (class UpdateUI {
-  constructor() {}
-  //Methods
+// const updateUI = new (class UpdateUI {
+//   constructor() {}
+//   //Methods
 
-  initUI() {
-    const cardsContainer = document.getElementById("cards-container");
+//   initUI() {
+//     const cardsContainer = document.getElementById("cards-container");
 
-    const playerCards = function (n) {
-      return `      
-    <div class="card">
-      <h3 class="card-player-name" id="player${n + 1}">Player ${n + 1}</h3>
-      <div class="card-player-curBet">Current Bet: 0</div>
-      <div class="card-player-curHand">Hand:</div>
-      <div class="card-player-balance">Balance: 1000</div>
-      <form class="form-plyr" id="formPlyr${n + 1}">
-          <input class="input-plyr" type="number" min="0" step="1" name="betValue" id="plyrForm${
-            n + 1
-          }">
-          <br>
-          <input type="submit" class="btn-plyr" value="Player ${n + 1} \nBet">
-      </form>
-      <button class="btn-call">Call</button>
-      <button class="btn-all-in">All-in</button>
-      <button class="btn-fold">Fold</button>
+//     const playerCards = function (n) {
+//       return `
+//     <div class="card">
+//       <h3 class="card-player-name" id="player${n + 1}">Player ${n + 1}</h3>
+//       <div class="card-player-curBet">Current Bet: 0</div>
+//       <div class="card-player-curHand">Hand:</div>
+//       <div class="card-player-balance">Balance: 1000</div>
+//       <form class="form-plyr" id="formPlyr${n + 1}">
+//           <input class="input-plyr" type="number" min="0" step="1" name="betValue" id="plyrForm${
+//             n + 1
+//           }">
+//           <br>
+//           <input type="submit" class="btn-plyr" value="Player ${n + 1} \nBet">
+//       </form>
+//       <button class="btn-call">Call</button>
+//       <button class="btn-all-in">All-in</button>
+//       <button class="btn-fold">Fold</button>
 
-      </div>
-    `;
-    };
+//       </div>
+//     `;
+//     };
 
-    for (let i = 0; i < activePlayers; i++) {
-      cardsContainer.innerHTML += playerCards(i);
-      // inputPlyr.push(`formPlyr${i + 1}`);
-    }
+//     for (let i = 0; i < activePlayers; i++) {
+//       cardsContainer.innerHTML += playerCards(i);
+//       // inputPlyr.push(`formPlyr${i + 1}`);
+//     }
 
-    btnPlyr = document.querySelectorAll(".btn-plyr");
-    inputPlyr = document.querySelectorAll(".input-plyr");
-    btnCall = document.querySelectorAll(".btn-call");
-    btnAllIn = document.querySelectorAll(".btn-all-in");
-    btnFold = document.querySelectorAll(".btn-fold");
+//     btnPlyr = document.querySelectorAll(".btn-plyr");
+//     inputPlyr = document.querySelectorAll(".input-plyr");
+//     btnCall = document.querySelectorAll(".btn-call");
+//     btnAllIn = document.querySelectorAll(".btn-all-in");
+//     btnFold = document.querySelectorAll(".btn-fold");
 
-    formPlyr = document.querySelectorAll(".form-plyr");
+//     formPlyr = document.querySelectorAll(".form-plyr");
 
-    cardCurBet = document.querySelectorAll(".card-player-curBet");
-    cardCurHand = document.querySelectorAll(".card-player-curHand");
-    cardCurBal = document.querySelectorAll(".card-player-balance");
+//     cardCurBet = document.querySelectorAll(".card-player-curBet");
+//     cardCurHand = document.querySelectorAll(".card-player-curHand");
+//     cardCurBal = document.querySelectorAll(".card-player-balance");
 
-    formPlyr.forEach((ele, i) => {
-      ele.addEventListener("submit", function (event) {
-        const formData = new FormData(event.target);
-        const betValue = formData.get("betValue");
+//     formPlyr.forEach((ele, i) => {
+//       ele.addEventListener("submit", function (event) {
+//         const formData = new FormData(event.target);
+//         const betValue = formData.get("betValue");
 
-        if (
-          gameState === gameStateArr[4] &&
-          players[i] === players[dealer.bigBlindPlyr] &&
-          players[dealer.bigBlindPlyr].startTurn === true
-        ) {
-          players[i].bigBlind(betValue);
-        } else if (
-          gameState === gameStateArr[4] &&
-          players[i] === players[dealer.smallBlindPlyr] &&
-          players[dealer.smallBlindPlyr].startTurn === true
-        ) {
-          players[i].smallBlind(betValue);
-        } else {
-          players[i].bets(betValue);
-        }
+//         if (
+//           gameState === gameStateArr[4] &&
+//           players[i] === players[dealer.bigBlindPlyr] &&
+//           players[dealer.bigBlindPlyr].startTurn === true
+//         ) {
+//           players[i].bigBlind(betValue);
+//         } else if (
+//           gameState === gameStateArr[4] &&
+//           players[i] === players[dealer.smallBlindPlyr] &&
+//           players[dealer.smallBlindPlyr].startTurn === true
+//         ) {
+//           players[i].smallBlind(betValue);
+//         } else {
+//           players[i].bets(betValue);
+//         }
 
-        updateUI.updatePlayerUI(i);
+//         updateUI.updatePlayerUI(i);
 
-        event.preventDefault();
-      });
-    });
+//         event.preventDefault();
+//       });
+//     });
 
-    btnPlyr.forEach((ele, i) => {
-      ele.addEventListener("click", function (event) {});
-    });
+//     btnPlyr.forEach((ele, i) => {
+//       ele.addEventListener("click", function (event) {});
+//     });
 
-    btnCall.forEach((ele, i) => {
-      // console.log(ele);
-      ele.addEventListener("click", (event) => {
-        const callAmount = dealer.minCall - players[i].currBet;
+//     btnCall.forEach((ele, i) => {
+//       // console.log(ele);
+//       ele.addEventListener("click", (event) => {
+//         const callAmount = dealer.minCall - players[i].currBet;
 
-        inputPlyr[i].value = callAmount;
+//         inputPlyr[i].value = callAmount;
 
-        event.preventDefault();
-      });
-    });
+//         event.preventDefault();
+//       });
+//     });
 
-    btnAllIn.forEach((ele, i) => {
-      // console.log(ele);
-      ele.addEventListener("click", (event) => {
-        const allInAmount = players[i].chips.currBal;
+//     btnAllIn.forEach((ele, i) => {
+//       // console.log(ele);
+//       ele.addEventListener("click", (event) => {
+//         const allInAmount = players[i].chips.currBal;
 
-        inputPlyr[i].value = allInAmount;
+//         inputPlyr[i].value = allInAmount;
 
-        event.preventDefault();
-      });
-    });
+//         event.preventDefault();
+//       });
+//     });
 
-    btnFold.forEach((ele, i) => {
-      // console.log(ele);
-      ele.addEventListener("click", (event) => {
-        players[i].fold();
-        event.preventDefault();
-      });
-    });
-  }
+//     btnFold.forEach((ele, i) => {
+//       // console.log(ele);
+//       ele.addEventListener("click", (event) => {
+//         players[i].fold();
+//         event.preventDefault();
+//       });
+//     });
+//   }
 
-  updatePlayerUI(n) {
-    cardCurBet[n].innerHTML = `Current Bet: ${players[n].currBet}`;
-    cardCurBal[n].innerHTML = `Balance: ${players[n].chips.currBal}`;
-    gameInfoPot.innerHTML = `Current Pot: ${dealer.pot}`;
-    gameInfoCall.innerHTML = `Call: ${dealer.minCall}`;
+//   updatePlayerUI(n) {
+//     cardCurBet[n].innerHTML = `Current Bet: ${players[n].currBet}`;
+//     cardCurBal[n].innerHTML = `Balance: ${players[n].chips.currBal}`;
+//     gameInfoPot.innerHTML = `Current Pot: ${dealer.pot}`;
+//     gameInfoCall.innerHTML = `Call: ${dealer.minCall}`;
 
-    // for (let i = 0; i < this.hand.length; i++) {
-    //   let { rank: playerRank, suit: playerSuit } = this.hand[i];
-    //   playerHandArr.push(` ${playerRank} of ${playerSuit}`);
-    //   playerHandGameArr.push(` ${playerRank}${playerSuit.charAt(0)}`);
-    // }
+//     // for (let i = 0; i < this.hand.length; i++) {
+//     //   let { rank: playerRank, suit: playerSuit } = this.hand[i];
+//     //   playerHandArr.push(` ${playerRank} of ${playerSuit}`);
+//     //   playerHandGameArr.push(` ${playerRank}${playerSuit.charAt(0)}`);
+//     // }
 
-    // cardCurHand.innerHTML = `${playerHandGameArr}`;
-  }
+//     // cardCurHand.innerHTML = `${playerHandGameArr}`;
+//   }
 
-  updatePlayerCardsUI() {
-    players.forEach((ele, i) => {
-      let playerHandGameArr = [];
+//   updatePlayerCardsUI() {
+//     players.forEach((ele, i) => {
+//       let playerHandGameArr = [];
 
-      players[i].hand.forEach((hand, n) => {
-        let { rank: playerRank, suit: playerSuit } = players[i].hand[n];
-        let icon;
+//       players[i].hand.forEach((hand, n) => {
+//         let { rank: playerRank, suit: playerSuit } = players[i].hand[n];
+//         let icon;
 
-        if (playerSuit === "Diamonds") icon = "♦️";
-        if (playerSuit === "Spades") icon = "♣️";
-        if (playerSuit === "Clubs") icon = "♠️";
-        if (playerSuit === "Hearts") icon = "❤️";
+//         if (playerSuit === "Diamonds") icon = "♦️";
+//         if (playerSuit === "Spades") icon = "♣️";
+//         if (playerSuit === "Clubs") icon = "♠️";
+//         if (playerSuit === "Hearts") icon = "❤️";
 
-        playerHandGameArr.push(` ${playerRank} ${icon}`);
-      });
-      cardCurHand[i].innerHTML = `Hand: ${playerHandGameArr}`;
-    });
-  }
+//         playerHandGameArr.push(` ${playerRank} ${icon}`);
+//       });
+//       cardCurHand[i].innerHTML = `Hand: ${playerHandGameArr}`;
+//     });
+//   }
 
-  updateDealerCardsUI() {
-    let dealerHandGameInfo = [];
+//   updateDealerCardsUI() {
+//     let dealerHandGameInfo = [];
 
-    for (let i = 0; i < dealer.hand.length; i++) {
-      // Deconstruct hand
-      let { rank: dealerRank, suit: dealerSuit } = dealer.hand[i];
+//     for (let i = 0; i < dealer.hand.length; i++) {
+//       // Deconstruct hand
+//       let { rank: dealerRank, suit: dealerSuit } = dealer.hand[i];
 
-      let icon;
+//       let icon;
 
-      if (dealerSuit === "Diamonds") icon = "♦️";
-      if (dealerSuit === "Spades") icon = "♣️";
-      if (dealerSuit === "Clubs") icon = "♠️";
-      if (dealerSuit === "Hearts") icon = "❤️";
+//       if (dealerSuit === "Diamonds") icon = "♦️";
+//       if (dealerSuit === "Spades") icon = "♣️";
+//       if (dealerSuit === "Clubs") icon = "♠️";
+//       if (dealerSuit === "Hearts") icon = "❤️";
 
-      dealerHandGameInfo.push(` ${dealerRank} ${icon}`);
-    }
+//       dealerHandGameInfo.push(` ${dealerRank} ${icon}`);
+//     }
 
-    gameInfoCards.innerHTML = `Community Cards: ${dealerHandGameInfo}`;
-  }
-})();
+//     gameInfoCards.innerHTML = `Community Cards: ${dealerHandGameInfo}`;
+//   }
+// })();
 
 const endGame = function () {
   const playerScore = [];
@@ -1821,7 +1823,8 @@ const initDealer = function () {
     }
 
     setNoPlyrs() {
-      activePlayers = Number(prompt("How many players? (2 - 10)", "4"));
+      console.log(playersId);
+      activePlayers = playersId.length;
 
       // check if value in prompt is valid/true
       if (
@@ -1834,7 +1837,12 @@ const initDealer = function () {
 
         // Set activePlayers global state
       } else {
-        this.setNoPlyrs();
+        console.error(
+          "****CHECK NUMBER OF PLAYERS IS INTEGER BETWEEN 2-10****"
+        );
+
+        // infinite loop
+        // this.setNoPlyrs();
       }
     }
 
@@ -1870,7 +1878,7 @@ const initDealer = function () {
 
     setGameState(n) {
       gameState = gameStateArr[n];
-      gameInfoPhase.innerHTML = `Game Phase: ${gameState}`;
+      // gameInfoPhase.innerHTML = `Game Phase: ${gameState}`;
     }
 
     betRoundComplete() {
@@ -2185,8 +2193,8 @@ const initDealer = function () {
       players[i].chips.currBal += potAmount;
       dealer.pot = 0;
 
-      gameInfoPot.innerHTML = `Current Pot: ${dealer.pot}`;
-      cardCurBal[i].innerHTML = `Balance: ${players[i].chips.currBal}`;
+      // gameInfoPot.innerHTML = `Current Pot: ${dealer.pot}`;
+      // cardCurBal[i].innerHTML = `Balance: ${players[i].chips.currBal}`;
     }
 
     startNewGame() {
@@ -2244,7 +2252,7 @@ const initPlayers = function (nPlayers) {
   addTextBox(`${nPlayers} players initialized`, 1);
 
   // placed here temporarily
-  updateUI.initUI();
+  // updateUI.initUI();
 };
 
 // Deal cards to players
@@ -2354,42 +2362,30 @@ const evaluateCards = function () {
   evalPlayer.forEach((val, i) => console.log(evalPlayer[i]));
 };
 
-// btnReset.forEach((ele) => ele.addEventListener("click", resetGame));
+const initPlayersId = function (playerId) {
+  console.log(playerId);
 
-module.exports = function initGameSession(gameSession, players) {
+  playersId.push(playerId);
+  console.log(playersId);
+};
+
+const initGameSession = function (gameSession) {
   // pass in parameter players as an array to store as a variable here in memory
 
   // initialize players and start setInterval
   if (gameState === gameState[0]) {
     gameSessionId = gameSession;
-    playersId = players;
     // read gameSession json and initialize players
-
+    generateDeck(suit, rank);
     initDealer();
     dealer.setGameState(1);
   }
-};
 
-module.exports = function parseCommand(gameSession, playerId, gameCommand) {
-  if (gameSessionId !== gameSession) {
-    return;
-  }
+  // gameCounter++;
+  // console.log(`Game No.${gameCounter}`);
+  // addTextBox(`Game No.${gameCounter}`, 2);
 
-  if (!playersId.find(players)) {
-    return;
-  }
-
-  if (gameState === gameStateArr[12]) {
-    dealer.startNewGame();
-  }
-};
-
-btnTurbo.addEventListener("click", function () {
-  gameCounter++;
-  console.log(`Game No.${gameCounter}`);
-  addTextBox(`Game No.${gameCounter}`, 2);
-
-  gameInfoNo.innerHTML = `Game No: ${gameCounter}`;
+  // gameInfoNo.innerHTML = `Game No: ${gameCounter}`;
 
   if (gameState === gameStateArr[0]) {
     initDealer();
@@ -2496,7 +2492,7 @@ btnTurbo.addEventListener("click", function () {
         players[i].showHand();
       }
 
-      updateUI.updatePlayerCardsUI();
+      // updateUI.updatePlayerCardsUI();
 
       dealer.initBlindNPlyrTurn();
 
@@ -2533,7 +2529,7 @@ btnTurbo.addEventListener("click", function () {
       dealerFlop();
       console.log(dealer.hand);
       dealer.showHand();
-      updateUI.updateDealerCardsUI();
+      // updateUI.updateDealerCardsUI();
       dealer.setGameState(7);
     }
   }
@@ -2557,7 +2553,7 @@ btnTurbo.addEventListener("click", function () {
       dealerTurn();
       console.log(dealer.hand);
       dealer.showHand();
-      updateUI.updateDealerCardsUI();
+      // updateUI.updateDealerCardsUI();
       dealer.setGameState(9);
     }
   }
@@ -2581,7 +2577,7 @@ btnTurbo.addEventListener("click", function () {
       dealerRiver();
       console.log(dealer.hand);
       dealer.showHand();
-      updateUI.updateDealerCardsUI();
+      // updateUI.updateDealerCardsUI();
       dealer.setGameState(11);
     }
   }
@@ -2615,4 +2611,84 @@ btnTurbo.addEventListener("click", function () {
       }
     }
   }
-});
+};
+
+const parseCommand = function (gameSession, playerId, gameCommand) {
+  if (gameSessionId !== gameSession) {
+    return;
+  }
+
+  if (!playersId.find(playerId)) {
+    return;
+  }
+
+  let i = playersId.indexOf(playerId);
+  let betValue;
+  let betType;
+  let message;
+
+  if (gameCommand.includes("!bet")) {
+    betValue = gameCommand.replace("!bet ", "");
+    betType = "bet";
+    message = "placed a bet";
+  }
+
+  if (gameCommand.includes("!call")) {
+    // betValue = gameCommand.replace("!call ", "");
+    message = "called";
+    betType = "call";
+  }
+
+  if (gameCommand.includes("!allin")) {
+    // betValue = gameCommand.replace("!allin ", "");
+    message = "went all in";
+    betType = "allin";
+  }
+
+  if (gameCommand.includes("!fold")) {
+    // betValue = gameCommand.replace("!allin ", "");
+    message = "folded";
+    betType = "fold";
+  }
+
+  if (!Number(betValue).isInteger()) {
+    return;
+  }
+
+  gameComms(gameSession, playerId, message);
+
+  if (betType === "bet") {
+    if (
+      gameState === gameStateArr[4] &&
+      players[i] === players[dealer.bigBlindPlyr] &&
+      players[dealer.bigBlindPlyr].startTurn === true
+    ) {
+      players[i].bigBlind(betValue);
+    } else if (
+      gameState === gameStateArr[4] &&
+      players[i] === players[dealer.smallBlindPlyr] &&
+      players[dealer.smallBlindPlyr].startTurn === true
+    ) {
+      players[i].smallBlind(betValue);
+    } else {
+      players[i].bets(betValue);
+    }
+  }
+
+  if (betType === "call") {
+    betValue = dealer.minCall - players[i].currBet;
+    players[i].bets(betValue);
+  }
+
+  if (betType === "call") {
+    // call
+    betValue = players[i].chips.currBal;
+    players[i].bets(betValue);
+  }
+
+  if (betType === "call") {
+    players[i].fold();
+  }
+};
+
+module.exports = { initPlayersId, initGameSession, parseCommand };

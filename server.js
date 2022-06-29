@@ -3,6 +3,7 @@ const Discord = require("discord.js");
 const dotenv = require("dotenv");
 const fs = require("node:fs");
 const path = require("node:path");
+const { parseCommand } = require("./game/poker.js");
 
 const app = require("./app");
 const port = 3001;
@@ -50,6 +51,22 @@ client.on("messageCreate", (message) => {
       .then(() => console.log(`Replied to message "${message.content}"`))
       .catch(console.error);
   }
+
+  if (
+    message.content.includes("!bet") ||
+    message.content.includes("!call") ||
+    message.content.includes("!allin") ||
+    message.content.includes("!fold")
+  ) {
+    message
+      .reply({ content: "Bot recieves bet!" })
+      .then(() => {
+        console.log(message.channel.id, message.author.id, message.content);
+        parseCommand(message.channel.id, message.author.id, message.content);
+        console.log(`Replied to message "${message.content}"`);
+      })
+      .catch(console.error);
+  }
 });
 
 client.on("interactionCreate", async (interaction) => {
@@ -80,3 +97,10 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`Discord bot is listening on port ${port}`);
 });
+
+const gameComms = async function (gameSession, playerID, message) {
+  const channel = await client.channel.fetch(gameSession);
+  channel.send({ content: `${playerID} ${message}` });
+};
+
+module.exports = { gameComms };

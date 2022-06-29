@@ -3,6 +3,9 @@ const path = require("node:path");
 
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const { json } = require("express");
+// const { initGameSession, parseCommand } = require("../game/poker.js");
+
+// const poker = require("../game/poker.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -60,26 +63,37 @@ module.exports = {
             }
           });
 
-          if (userID.length < 2) {
-            if (!userID.length) {
-              channel.send({ content: `No one is playing :(` });
-            } else {
-              channel.send({
-                content: `Get more friends, you need more than 1 player`,
-              });
-            }
-            return;
-          }
+          // console.log(userID);
 
-          if (userID.length > 10) {
-            channel.send({
-              content: `Get some one to leave (and remove react), game can't have more than 10 players (excluding bot)`,
-            });
-            return;
-          }
+          // if (userID.length < 2) {
+          //   if (!userID.length) {
+          //     channel.send({ content: `No one is playing :(` });
+          //   } else {
+          //     channel.send({
+          //       content: `Get more friends, you need more than 1 player`,
+          //     });
+          //   }
+          //   return;
+          // }
 
-          console.log(userID);
+          // if (userID.length > 10) {
+          //   channel.send({
+          //     content: `Get some one to leave (and remove react), game can't have more than 10 players (excluding bot)`,
+          //   });
+          //   return;
+          // }
+
+          // console.log(userID);
           return userID;
+        })
+        .then((userID) => {
+          // const poker = require("../game/poker.js");
+          const pokerPath = path.join(__dirname, "..", "game", "poker.js");
+
+          const { initPlayersId, initGameSession } = require(pokerPath);
+
+          initPlayersId(...userID);
+          // initGameSession(channel.id);
         });
 
       // const reaction = msg.reactions;

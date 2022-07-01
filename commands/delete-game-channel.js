@@ -24,37 +24,66 @@ module.exports = {
         channel.delete();
 
         // folder path where game session data are kept
-        const folderPath = path.join(__dirname, "..", "gameSession");
+        const gameSessionFolderPath = path.join(__dirname, "..", "gameSession");
+        const gameJsFolderPath = path.join(__dirname, "..", "game");
 
-        // file path of game sessions
-        const filePath = path.join(
-          __dirname,
-          "..",
-          "gameSession",
-          `${channel.id}.json`
-        );
+        const deleteFile = function (folderPath) {
+          let filePath;
+          fs.readdir(folderPath, (err, files) => {
+            // file path of game sessions
+            if (folderPath === gameSessionFolderPath) {
+              filePath = path.join(folderPath, `${channel.id}.json`);
+            }
+
+            if (folderPath === gameJsFolderPath) {
+              filePath = path.join(folderPath, `${channel.id}.js`);
+            }
+
+            if (err) console.log(err);
+            else {
+              // looping through each file
+              files.forEach((file) => {
+                // removing extension name to get filename that's based on channelId
+                const filename = file.substring(0, file.lastIndexOf("."));
+
+                // if channel.id is the same as filaname - delete file
+                if ((channel.id = filename)) {
+                  fs.unlink(filePath, (err) => {
+                    if (err) {
+                      console.error(err);
+                      return;
+                    }
+                  });
+                }
+              });
+            }
+          });
+        };
+
+        deleteFile(gameSessionFolderPath);
+        deleteFile(gameJsFolderPath);
 
         // read contents of folder
-        fs.readdir(folderPath, (err, files) => {
-          if (err) console.log(err);
-          else {
-            // looping through each file
-            files.forEach((file) => {
-              // removing extension name to get filename that's based on channelId
-              const filename = file.substring(0, file.lastIndexOf("."));
+        // fs.readdir(folderPath, (err, files) => {
+        //   if (err) console.log(err);
+        //   else {
+        //     // looping through each file
+        //     files.forEach((file) => {
+        //       // removing extension name to get filename that's based on channelId
+        //       const filename = file.substring(0, file.lastIndexOf("."));
 
-              // if channel.id is the same as filaname - delete file
-              if ((channel.id = filename)) {
-                fs.unlink(filePath, (err) => {
-                  if (err) {
-                    console.error(err);
-                    return;
-                  }
-                });
-              }
-            });
-          }
-        });
+        //       // if channel.id is the same as filaname - delete file
+        //       if ((channel.id = filename)) {
+        //         fs.unlink(filePath, (err) => {
+        //           if (err) {
+        //             console.error(err);
+        //             return;
+        //           }
+        //         });
+        //       }
+        //     });
+        //   }
+        // });
       }
     });
 

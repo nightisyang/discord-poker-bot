@@ -3,6 +3,8 @@ const path = require("node:path");
 
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const { json } = require("express");
+const { fetchChannel } = require("../gameComms/gameMsg");
+
 // const { initGameSession, parseCommand } = require("../game/poker.js");
 
 // const poker = require("../game/poker.js");
@@ -21,30 +23,50 @@ module.exports = {
 
     let channel = interaction.channel;
 
+    fetchChannel(channel);
+
+    const pokerPath = path.join(__dirname, "..", "game", `${channel.id}.js`);
+
+    fs.copyFileSync(path.join(__dirname, "..", "game", "poker.js"), pokerPath);
+
+    const {
+      initPlayersId,
+      initGameSession,
+      initGamemaster,
+      fetchGameState,
+      startNewGame,
+    } = require(pokerPath);
+
+    const gameState = fetchGameState();
+
+    if (gameState !== 0) {
+      interaction.reply(
+        `Game session is on-going. Game Master has access to !endgame to force end this session.`
+      );
+      return;
+    }
+
+    const filePath = path.join(
+      __dirname,
+      "..",
+      "gameSession",
+      `${channel.id}.json`
+    );
+
+    const json = fs.readFileSync(filePath, "utf8", (err, data) => {
+      if (err) {
+        console.error(err);
+        interaction.reply(
+          `Game session doesn't exist, please use /start-game only in #game channels`
+        );
+        return;
+      }
+    });
+
     if (channel.name === "game" && channel.parentId === pokerCategory.id) {
       // file path of game sessions
-      const filePath = path.join(
-        __dirname,
-        "..",
-        "gameSession",
-        `${channel.id}.json`
-      );
-
-      const json = fs.readFileSync(filePath, "utf8", (err, data) => {
-        if (err) {
-          console.error(err);
-          interaction.reply(
-            `Game session doesn't exist, please use /start-game only in #game channels`
-          );
-          return;
-        }
-      });
 
       const jsonObj = JSON.parse(json);
-
-      // console.log(jsonObj);
-
-      // console.log(channel);
 
       let botId;
 
@@ -55,45 +77,60 @@ module.exports = {
           return msg.reactions.resolve("✅").users.fetch();
         })
         .then((users) => {
-          let userID = [];
+          let usersArr = [];
 
           users.forEach((value, key, map) => {
             if (key !== botId) {
-              userID.push(key);
+              usersArr.push(value);
             }
           });
 
           // console.log(userID);
 
-          // if (userID.length < 2) {
-          //   if (!userID.length) {
-          //     channel.send({ content: `No one is playing :(` });
-          //   } else {
-          //     channel.send({
-          //       content: `Get more friends, you need more than 1 player`,
-          //     });
-          //   }
-          //   return;
-          // }
+          if (usersArr.length < 2) {
+            if (!usersArr.length) {
+              channel.send({ content: `No one is playing :(` });
+            } else {
+              channel.send({
+                content: `Get more friends, you need more than 1 player`,
+              });
+            }
+            return;
+          }
 
-          // if (userID.length > 10) {
-          //   channel.send({
-          //     content: `Get some one to leave (and remove react), game can't have more than 10 players (excluding bot)`,
-          //   });
-          //   return;
-          // }
+          if (usersArr.length > 10) {
+            channel.send({
+              content: `Get some one to leave (and remove react), game can't have more than 10 players (excluding bot)`,
+            });
+            return;
+          }
 
           // console.log(userID);
-          return userID;
+          return usersArr;
         })
-        .then((userID) => {
-          // const poker = require("../game/poker.js");
-          const pokerPath = path.join(__dirname, "..", "game", "poker.js");
+        .then((usersArr) => {
+          // const pokerPath = path.join(__dirname, "..", "game", "poker.js");
 
-          const { initPlayersId, initGameSession } = require(pokerPath);
+          if (usersArr != null) {
+            channel.send({ content: "Setting up game, get ready!" });
 
-          initPlayersId(...userID);
-          // initGameSession(channel.id);
+            initGamemaster(interaction.user.id);
+
+            channel.send({
+              content: `<@${interaction.user.id}> you're the Game Master! You have access to "!kick @player" & "!endgame"! `,
+            });
+
+            usersArr.forEach((user) => initPlayersId(user));
+            // initPlayersId(...userID);
+            console.log(channel.id);
+            initGameSession(channel.id);
+
+            if (gameState === 12) {
+              startNewGame();
+            }
+          } else {
+            return;
+          }
         });
 
       // const reaction = msg.reactions;
@@ -128,7 +165,7 @@ module.exports = {
       // get reaction count and user except for bot
       // pass the data into game - userID and playerCount
 
-      await interaction.reply(`Setting up game, get ready!`);
+      // await interaction.reply(`Setting up game, get ready!`);
     }
   },
 };

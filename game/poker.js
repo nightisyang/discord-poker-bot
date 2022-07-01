@@ -1,6 +1,12 @@
 "use strict";
 
-const { gameComms } = require("../server.js");
+const {
+  channelMsg,
+  directMsg,
+  embedTableMsg,
+  fetchUsername,
+  embedNewGame,
+} = require("../gameComms/gameMsg.js");
 
 // DOM Elements
 // const btnInit = document.querySelector(".btn-init");
@@ -50,8 +56,11 @@ let game;
 let stalePlayer = [];
 let muckPlayer = [];
 let muckCards = [];
-let gameSessionId;
+let gameSessionId = "";
 let playersId = [];
+let playersUsername = [];
+let dealerTimer;
+let gamemaster;
 
 const gameStateArr = [
   "reset",
@@ -86,49 +95,23 @@ const handRanking = [
 
 console.log(gameStateArr);
 
-function addTextBox(text, numLine) {
-  let newLineArr = [];
-  let newLineStr = "";
-  for (let i = 0; i < numLine; i++) {
-    newLineArr.push("\n");
+function addTextBox(text) {
+  let str;
+  let player;
+
+  playersId.forEach((playerId) => {
+    if (text.match(playerId)) {
+      str = text.replace(playerId, "");
+      player = playerId;
+    }
+  });
+
+  if (!player) {
+    channelMsg(text);
+  } else {
+    channelMsg(str, player, gameSessionId);
   }
-
-  newLineArr.forEach((val) => (newLineStr += val));
-
-  // textbox.value += newLineStr + text;
-
-  // const textboxHeight = textbox.scrollHeight;
-  // textbox.scrollTop = textbox.scrollHeight;
 }
-
-// function addTextBox2(text, numLine) {
-//   let n = 0;
-//   const speed = 5;
-//   let newLineArr = [];
-//   let newLineStr = "";
-//   for (let i = 0; i < numLine; i++) {
-//     newLineArr.push("\n");
-//   }
-
-//   newLineArr.forEach((val) => (newLineStr += val));
-
-//   const combinedText = newLineStr + text;
-
-//   const typeWriter = function () {
-//     if (n < text.length) {
-//       textbox.value += text.charAt(n);
-//       n++;
-//       const textboxHeight = textbox.scrollHeight;
-//       textbox.scrollTop = textbox.scrollHeight;
-//       setTimeout(typeWriter, speed);
-//     }
-//   };
-//   typeWriter();
-// }
-
-// addTextBox2(
-//   "Welcome!\n\nThis app is completely built on vanilla javascript and is my first ever coding project! This version runs completely on client-side browser!\n\nIt simulates a complete cycle of a Texas Hold 'em poker game, with basic features i.e. betting, calling, raising, checking, folding and other game logic e.g. determining the hand of a player, comparing player's cards at the end of betting, resolving ties and dealing with tiebreakers, selecting a winner(s), player rotation etc.\n\nAt the end of a game, the winner takes the pot amount and a new game can be started by pressing the Start Game! button at the top.\n\nBalances are brought forward to each game and the game can continue until a player loses their entire balance. The current game number is shown on the top right!\n\nA basic rundown of Texas Hold 'em can be found in the link below.\n\nIn this game, 2 to 10 players can be simulated starting with 1000 balance per player.\n\nPlayers cards are revealed on purpose to demonstrate card evaluation logic.\n\nClick on Start Game! to start a new game! The recommended small blind and big blinds are 1 & 2 usually starting with Player 3 and 2 respectively! The minimum bets are Calls (see above), any bets larger than Calls are Raise.\n\nHave fun!!"
-// );
 
 const resetGame = function () {
   gameState = gameStateArr[0];
@@ -141,9 +124,9 @@ const resetGame = function () {
   game;
 
   // remove buttons
-  document.querySelectorAll(".btn-plyr").forEach(function (a) {
-    a.remove();
-  });
+  // document.querySelectorAll(".btn-plyr").forEach(function (a) {
+  //   a.remove();
+  // });
 
   console.log("Game reset, please initialize game to play!");
   // textbox.value = "Reset! Press Initialize game to start!";
@@ -188,6 +171,92 @@ const fisYatesShuff = function () {
   return deck;
 };
 
+const updateTable = function () {
+  const embedTable = {
+    color: 0x0099ff,
+    title: "Texas Hold 'em Poker Bot.",
+    // url: "https://discord.js.org",
+    // author: {
+    //   name: "Some name",
+    //   icon_url: "https://i.imgur.com/AfFp7pu.png",
+    //   url: "https://discord.js.org",
+    // },
+    description:
+      "Click on ✅ to join and use /start-game when players are ready.\n!bet <value> !call !check !allin !fold ",
+    // thumbnail: {
+    //   url: "https://i.imgur.com/AfFp7pu.png",
+    // },
+    fields: [],
+    // image: {
+    //   url: "https://i.imgur.com/AfFp7pu.png",
+    // },
+    timestamp: new Date(),
+    footer: {
+      text: "Some footer text here",
+      icon_url: "https://i.imgur.com/AfFp7pu.png",
+    },
+  };
+
+  let dealerHandStrArr = [];
+
+  if (dealer.hand.length > 0) {
+    for (let i = 0; i < dealer.hand.length; i++) {
+      // Deconstruct hand
+      let { rank: dealerRank, suit: dealerSuit } = dealer.hand[i];
+
+      // Push results to array
+      dealerHandStrArr.push(` ${dealerRank} of ${dealerSuit}`);
+    }
+  } else {
+    dealerHandStrArr.push(`Dealer has no cards.`);
+  }
+
+  const dealerInfo = [
+    {
+      name: "Dealer", // Dealer
+      value: `Pot Size: ${dealer.pot}`, // Pot size
+      inline: true,
+    },
+    {
+      name: "Community Cards", // Community Cards
+      value: `${dealerHandStrArr.toString()}`, // Community Cards
+      inline: true,
+    },
+    {
+      name: "Call", // Call
+      value: `Min Call: ${dealer.minCall}`, // min call
+      inline: true,
+    },
+    {
+      name: "\u200b",
+      value: "\u200b",
+      inline: false,
+    },
+  ];
+
+  dealerInfo.forEach((obj) => {
+    embedTable.fields.push(obj);
+  });
+
+  players.forEach((player, i) => {
+    if (player.active === true) {
+      embedTable.fields.push({
+        name: `${playersUsername[i]} Current Bet/Balance`,
+        value: `Current Bet: ${player.currBet} Balance: ${player.chips.currBal}`,
+        inline: true,
+      });
+    }
+  });
+
+  console.log(embedTable);
+
+  embedTableMsg(embedTable, gameSessionId);
+
+  if (gameState === gameStateArr[12]) {
+    embedNewGame(embedTable, gameSessionId);
+  }
+};
+
 // Player Class prototype
 const PlayerCl = class {
   constructor(playerNo, hand, chips, currBet, active, startTurn, betRound) {
@@ -212,7 +281,7 @@ const PlayerCl = class {
     }
 
     console.log(`${this.playerNo} has ${playerHandArr}`);
-    addTextBox(`${this.playerNo} has${playerHandArr}`, 1);
+    directMsg(playerHandArr.join(), this.playerNo, gameSessionId);
   }
 
   smallBlind(betValue) {
@@ -233,8 +302,7 @@ const PlayerCl = class {
         `${this.playerNo} has placed small blind $${smallBlindAmount}`
       );
       addTextBox(
-        `${this.playerNo} has placed small blind $${smallBlindAmount}`,
-        1
+        `${this.playerNo} has placed small blind $${smallBlindAmount}`
       );
       // store current smallBlindAmount
       // this.currBet = smallBlindAmount;
@@ -252,6 +320,7 @@ const PlayerCl = class {
 
       // set betRound to false
       // this.plyrCompleteBetRound(); --> not necessary as small blind player will always have to call, will only complete bet round after calling
+      updateTable();
 
       this.plyrEndTurn();
     }
@@ -275,7 +344,7 @@ const PlayerCl = class {
     ) {
       // print to console amount bet
       console.log(`${this.playerNo} has placed big blind $${bigBlindAmount}`);
-      addTextBox(`${this.playerNo} has placed big blind $${bigBlindAmount}`, 1);
+      addTextBox(`${this.playerNo} has placed big blind $${bigBlindAmount}`);
       // store current bigBlindAmount
       // this.currBet = bigBlindAmount;
       dealer.bigBlindAmount = bigBlindAmount;
@@ -291,6 +360,8 @@ const PlayerCl = class {
       // deduct current balance
       this.chips.currBal -= bigBlindAmount;
 
+      updateTable();
+
       // set betRound to false
       this.plyrCompleteBetRound();
 
@@ -300,7 +371,7 @@ const PlayerCl = class {
       dealer.setGameState(5);
     } else if (bigBlindAmount < dealer.smallBlind * 2) {
       // alert
-      alert(
+      addTextBox(
         `Bet amount too low, big blind has to be twice the amount of small blind ${dealer.smallBlind}`
       );
 
@@ -326,11 +397,11 @@ const PlayerCl = class {
       this.allIn = true;
 
       // store current allInAmount
-      this.currBet = allInAmount;
+      this.currBet += allInAmount;
 
       // print to console amount bet
       console.log(`${this.playerNo} has went ALL IN ${this.currBet}!`);
-      addTextBox(`${this.playerNo} has went ALL IN ${this.currBet}!`, 2);
+      addTextBox(`${this.playerNo} has went ALL IN ${this.currBet}!`);
 
       // only approve if bet amount is less than current balance
       // if conditions are true, then push bet to movement array
@@ -345,6 +416,8 @@ const PlayerCl = class {
       dealer.potMov.amount.push(allInAmount);
       dealer.potMov.player.push(this.playerNo);
 
+      updateTable();
+
       // set betRound to false
       this.plyrCompleteBetRound();
 
@@ -358,9 +431,13 @@ const PlayerCl = class {
   bets(betValue) {
     if (this.active === true && activePlayers === 1) {
       console.log(`${this.playerNo} wins!`);
-      addTextBox(`${this.playerNo} wins!`, 1);
+      addTextBox(`${this.playerNo} wins!`);
       gameState = gameStateArr[12];
       return;
+    }
+
+    if (!this.startTurn) {
+      addTextBox(`${this.playerNo} it is not your turn!`);
     }
 
     if (this.active === true && this.startTurn === true) {
@@ -409,12 +486,12 @@ const PlayerCl = class {
           return;
         }
         // store current betAmount
-        this.currBet = betAmount;
+        this.currBet += betAmount;
 
         // print to console amount bet
         console.log(`${this.playerNo} has placed ${betAmount}`);
 
-        addTextBox(`${this.playerNo} has placed ${betAmount}`, 2);
+        addTextBox(`${this.playerNo} has placed ${betAmount}`);
 
         // only approve if bet amount is less than current balance
         // if conditions are true, then push bet to movement array
@@ -424,11 +501,11 @@ const PlayerCl = class {
           this.chips.movType.push("Call");
           console.log(`${this.playerNo} has called`);
 
-          addTextBox(`${this.playerNo} has called`, 1);
+          addTextBox(`${this.playerNo} has called`);
         }
 
         // player goes all in
-        if (this.currBet === this.chips.currBal) {
+        if (betAmount === this.chips.currBal) {
           dealer.minCall = this.currBet;
           dealer.allIn = true;
           this.allIn = true;
@@ -438,8 +515,7 @@ const PlayerCl = class {
           );
 
           addTextBox(
-            `${this.playerNo} has went ALL IN! Raise to meet call ${dealer.minCall}!`,
-            2
+            `${this.playerNo} has went ALL IN! Raise to meet call ${dealer.minCall}!`
           );
 
           this.chips.movType.push("ALL IN");
@@ -450,7 +526,7 @@ const PlayerCl = class {
             }
           });
 
-          alert(
+          addTextBox(
             `${this.playerNo} has went ALL IN! Raise to meet call ${dealer.minCall}!`
           );
         }
@@ -472,7 +548,7 @@ const PlayerCl = class {
             }
           });
 
-          alert(
+          addTextBox(
             `${this.playerNo} has raise! Raise to meet call ${dealer.minCall}!`
           );
         } else if (dealer.minCall === 0) {
@@ -485,6 +561,8 @@ const PlayerCl = class {
         dealer.potMov.amount.push(betAmount);
         dealer.potMov.player.push(this.playerNo);
 
+        updateTable();
+
         // set betRound to false
         this.plyrCompleteBetRound();
 
@@ -494,13 +572,13 @@ const PlayerCl = class {
         // if player bets more than balance
       } else if (betAmount > this.chips.currBal) {
         // alert
-        alert("Insufficient balance!");
+        addTextBox("Insufficient balance!");
 
         // and rerun function
         // this.bets();
       } else if (betAmount < dealer.minCall) {
         // alert
-        alert(
+        addTextBox(
           `Bet amount too low, call ${dealer.minCall} or raise! Your current bet is ${this.currBet}`
         );
 
@@ -508,13 +586,13 @@ const PlayerCl = class {
         // this.bets();
       } else if (betAmount < dealer.minCall && betAmount < this.chips.currBal) {
         // alert
-        alert(`Bet amount too low, call ${dealer.minCall} or raise!`);
+        addTextBox(`Bet amount too low, call ${dealer.minCall} or raise!`);
 
         // and rerun function
         // this.bets();
       } else {
         // if player include value that is not integer or negative value
-        alert("Please enter whole values more than zero!");
+        addTextBox("Please enter whole values more than zero!");
 
         // rerun function
         // this.bets();
@@ -554,7 +632,7 @@ const PlayerCl = class {
 
         // print to console amount bet
         console.log(`${this.playerNo} has met the raised ${this.currBet}`);
-        addTextBox(`${this.playerNo} has met the raised ${this.currBet}`, 2);
+        addTextBox(`${this.playerNo} has met the raised ${this.currBet}`);
 
         // only approve if bet amount is less than current balance
         // if conditions are true, then push bet to movement array
@@ -575,7 +653,7 @@ const PlayerCl = class {
 
           this.chips.movType.push("Raise");
 
-          alert(
+          addTextBox(
             `${this.playerNo} has raise! Raise to meet call ${dealer.minCall}!`
           );
 
@@ -587,6 +665,8 @@ const PlayerCl = class {
         dealer.potMov.amount.push(raiseAmount);
         dealer.potMov.player.push(this.playerNo);
 
+        updateTable();
+
         // set betRound to false
         this.plyrCompleteBetRound();
 
@@ -596,13 +676,13 @@ const PlayerCl = class {
         // if player bets more than balance
       } else if (raiseAmount > this.chips.currBal) {
         // alert
-        alert("Insufficient balance!");
+        addTextBox("Insufficient balance!");
 
         // and rerun function
         // this.call();
       } else if (currAddRaise < dealer.minCall) {
         // alert
-        alert(
+        addTextBox(
           `Raise amount too low! Your current bet is ${
             this.currBet
           }, raise bet by ${dealer.minCall - this.currBet} to stay in the game!`
@@ -615,7 +695,7 @@ const PlayerCl = class {
         raiseAmount < this.chips.currBal
       ) {
         // alert
-        alert(
+        addTextBox(
           `You don't have enough chips to meet the raise ${dealer.minCall}. Type "fold" to forfeit!`
         );
 
@@ -623,7 +703,7 @@ const PlayerCl = class {
         // this.call();
       } else {
         // if player include value that is not integer or negative value
-        alert("Please enter whole values more than zero!");
+        addTextBox("Please enter whole values more than zero!");
 
         // rerun function
         // this.call();
@@ -648,7 +728,9 @@ const PlayerCl = class {
       this.active = false;
 
       console.log(`${this.playerNo} has folded!`);
-      addTextBox(`${this.playerNo} has folded!`, 2);
+      addTextBox(`${this.playerNo} has folded!`);
+
+      updateTable();
 
       // set betRound to false
       this.plyrCompleteBetRound();
@@ -660,13 +742,15 @@ const PlayerCl = class {
 
   check() {
     console.log(`${this.playerNo} has checked`);
-    addTextBox(`${this.playerNo} has checked`, 2);
+    addTextBox(`${this.playerNo} has checked`);
     const { amount, player } = dealer.potMov;
     // dealer.pot += betAmount;
     dealer.potMov.amount.push(0);
     dealer.potMov.player.push(this.playerNo);
     this.chips.movement.push(0);
     this.chips.movType.push("Check");
+
+    updateTable();
 
     // set betRound to false
     this.plyrCompleteBetRound();
@@ -678,6 +762,7 @@ const PlayerCl = class {
   plyrEndTurn() {
     // end turn and ask dealer to start next player's turn
     this.startTurn = false;
+    clearTimeout(dealerTimer);
     dealer.startNextPlyrTurn();
   }
 
@@ -1128,169 +1213,6 @@ const StalePlayers = class {
   }
 };
 
-// const updateUI = new (class UpdateUI {
-//   constructor() {}
-//   //Methods
-
-//   initUI() {
-//     const cardsContainer = document.getElementById("cards-container");
-
-//     const playerCards = function (n) {
-//       return `
-//     <div class="card">
-//       <h3 class="card-player-name" id="player${n + 1}">Player ${n + 1}</h3>
-//       <div class="card-player-curBet">Current Bet: 0</div>
-//       <div class="card-player-curHand">Hand:</div>
-//       <div class="card-player-balance">Balance: 1000</div>
-//       <form class="form-plyr" id="formPlyr${n + 1}">
-//           <input class="input-plyr" type="number" min="0" step="1" name="betValue" id="plyrForm${
-//             n + 1
-//           }">
-//           <br>
-//           <input type="submit" class="btn-plyr" value="Player ${n + 1} \nBet">
-//       </form>
-//       <button class="btn-call">Call</button>
-//       <button class="btn-all-in">All-in</button>
-//       <button class="btn-fold">Fold</button>
-
-//       </div>
-//     `;
-//     };
-
-//     for (let i = 0; i < activePlayers; i++) {
-//       cardsContainer.innerHTML += playerCards(i);
-//       // inputPlyr.push(`formPlyr${i + 1}`);
-//     }
-
-//     btnPlyr = document.querySelectorAll(".btn-plyr");
-//     inputPlyr = document.querySelectorAll(".input-plyr");
-//     btnCall = document.querySelectorAll(".btn-call");
-//     btnAllIn = document.querySelectorAll(".btn-all-in");
-//     btnFold = document.querySelectorAll(".btn-fold");
-
-//     formPlyr = document.querySelectorAll(".form-plyr");
-
-//     cardCurBet = document.querySelectorAll(".card-player-curBet");
-//     cardCurHand = document.querySelectorAll(".card-player-curHand");
-//     cardCurBal = document.querySelectorAll(".card-player-balance");
-
-//     formPlyr.forEach((ele, i) => {
-//       ele.addEventListener("submit", function (event) {
-//         const formData = new FormData(event.target);
-//         const betValue = formData.get("betValue");
-
-//         if (
-//           gameState === gameStateArr[4] &&
-//           players[i] === players[dealer.bigBlindPlyr] &&
-//           players[dealer.bigBlindPlyr].startTurn === true
-//         ) {
-//           players[i].bigBlind(betValue);
-//         } else if (
-//           gameState === gameStateArr[4] &&
-//           players[i] === players[dealer.smallBlindPlyr] &&
-//           players[dealer.smallBlindPlyr].startTurn === true
-//         ) {
-//           players[i].smallBlind(betValue);
-//         } else {
-//           players[i].bets(betValue);
-//         }
-
-//         updateUI.updatePlayerUI(i);
-
-//         event.preventDefault();
-//       });
-//     });
-
-//     btnPlyr.forEach((ele, i) => {
-//       ele.addEventListener("click", function (event) {});
-//     });
-
-//     btnCall.forEach((ele, i) => {
-//       // console.log(ele);
-//       ele.addEventListener("click", (event) => {
-//         const callAmount = dealer.minCall - players[i].currBet;
-
-//         inputPlyr[i].value = callAmount;
-
-//         event.preventDefault();
-//       });
-//     });
-
-//     btnAllIn.forEach((ele, i) => {
-//       // console.log(ele);
-//       ele.addEventListener("click", (event) => {
-//         const allInAmount = players[i].chips.currBal;
-
-//         inputPlyr[i].value = allInAmount;
-
-//         event.preventDefault();
-//       });
-//     });
-
-//     btnFold.forEach((ele, i) => {
-//       // console.log(ele);
-//       ele.addEventListener("click", (event) => {
-//         players[i].fold();
-//         event.preventDefault();
-//       });
-//     });
-//   }
-
-//   updatePlayerUI(n) {
-//     cardCurBet[n].innerHTML = `Current Bet: ${players[n].currBet}`;
-//     cardCurBal[n].innerHTML = `Balance: ${players[n].chips.currBal}`;
-//     gameInfoPot.innerHTML = `Current Pot: ${dealer.pot}`;
-//     gameInfoCall.innerHTML = `Call: ${dealer.minCall}`;
-
-//     // for (let i = 0; i < this.hand.length; i++) {
-//     //   let { rank: playerRank, suit: playerSuit } = this.hand[i];
-//     //   playerHandArr.push(` ${playerRank} of ${playerSuit}`);
-//     //   playerHandGameArr.push(` ${playerRank}${playerSuit.charAt(0)}`);
-//     // }
-
-//     // cardCurHand.innerHTML = `${playerHandGameArr}`;
-//   }
-
-//   updatePlayerCardsUI() {
-//     players.forEach((ele, i) => {
-//       let playerHandGameArr = [];
-
-//       players[i].hand.forEach((hand, n) => {
-//         let { rank: playerRank, suit: playerSuit } = players[i].hand[n];
-//         let icon;
-
-//         if (playerSuit === "Diamonds") icon = "♦️";
-//         if (playerSuit === "Spades") icon = "♣️";
-//         if (playerSuit === "Clubs") icon = "♠️";
-//         if (playerSuit === "Hearts") icon = "❤️";
-
-//         playerHandGameArr.push(` ${playerRank} ${icon}`);
-//       });
-//       cardCurHand[i].innerHTML = `Hand: ${playerHandGameArr}`;
-//     });
-//   }
-
-//   updateDealerCardsUI() {
-//     let dealerHandGameInfo = [];
-
-//     for (let i = 0; i < dealer.hand.length; i++) {
-//       // Deconstruct hand
-//       let { rank: dealerRank, suit: dealerSuit } = dealer.hand[i];
-
-//       let icon;
-
-//       if (dealerSuit === "Diamonds") icon = "♦️";
-//       if (dealerSuit === "Spades") icon = "♣️";
-//       if (dealerSuit === "Clubs") icon = "♠️";
-//       if (dealerSuit === "Hearts") icon = "❤️";
-
-//       dealerHandGameInfo.push(` ${dealerRank} ${icon}`);
-//     }
-
-//     gameInfoCards.innerHTML = `Community Cards: ${dealerHandGameInfo}`;
-//   }
-// })();
-
 const endGame = function () {
   const playerScore = [];
   let playerIndexWithDupe = [];
@@ -1316,7 +1238,7 @@ const endGame = function () {
     // console.log(
     //   `${evalPlayer[i].player} has ${handRanking[score]} and ranking of ${score}`
     // );
-    addTextBox(`${evalPlayer[i].player} has ${handRanking[score]}`, 1);
+    addTextBox(`${evalPlayer[i].player} has ${handRanking[score]}`);
   }
 
   // print playerScore arr
@@ -1368,7 +1290,7 @@ const endGame = function () {
         } with ${[...winnerCards]}`
       );
       console.log(...str);
-      addTextBox(`${[...str]}`, 2);
+      addTextBox(`${[...str]}`);
 
       dealer.plyrWinsPot(winner, dealer.pot);
     }
@@ -1390,7 +1312,7 @@ const endGame = function () {
         str.push(`${evalPlayer[val].player}`);
       });
       console.log(`${[...str]} have are tied with ${typeOfDupe}`);
-      addTextBox(`${[...str]} are tied with ${typeOfDupe}`, 2);
+      addTextBox(`${[...str]} are tied with ${typeOfDupe}`);
 
       // print cards only once
       let printed = false;
@@ -1421,7 +1343,7 @@ const endGame = function () {
 
             // print to console
             console.log(`${evalPlayer[playerIdx].player} with ${[...str]}`);
-            addTextBox(`${evalPlayer[playerIdx].player} with ${[...str]}`, 1);
+            addTextBox(`${evalPlayer[playerIdx].player} with ${[...str]}`);
           };
 
           if (firstRun === true) {
@@ -1539,7 +1461,7 @@ const endGame = function () {
             } with ${[...winnerCards]}`
           );
           console.log(...str);
-          addTextBox(`${[...str]}`, 2);
+          addTextBox(`${[...str]}`);
 
           dealer.plyrWinsPot(winner, dealer.pot);
         }
@@ -1563,7 +1485,7 @@ const endGame = function () {
     console.error(playerIdxStaleArr);
     getPlayer(playerIdxStaleArr);
     console.log(`There's a stalemate between ${[...str]}`);
-    addTextBox(`There's a stalemate between ${[...str]}`, 2);
+    addTextBox(`There's a stalemate between ${[...str]}`);
 
     // initialize stalePlayers and port over all relevant data
     for (let i = 0; i < playerIdxStaleArr.length; i++) {
@@ -1611,8 +1533,7 @@ const endGame = function () {
         `${stalePlayer[i].player} has ${finalRank.length} kickers ${[...str]}`
       );
       addTextBox(
-        `${stalePlayer[i].player} has ${finalRank.length} kickers ${[...str]}`,
-        1
+        `${stalePlayer[i].player} has ${finalRank.length} kickers ${[...str]}`
       );
     }
   };
@@ -1682,8 +1603,7 @@ const endGame = function () {
             stalePlayer[idxMaxValKicker].player
           } has the highest in Kicker No.${i + 1}! ${
             stalePlayer[idxMaxValKicker].player
-          } wins!`,
-          2
+          } wins!`
         );
 
         let winnerIndex;
@@ -1772,14 +1692,14 @@ const initDealer = function () {
         dealerHandStrArr.push(` ${dealerRank} of ${dealerSuit}`);
       }
       console.log(`Dealer has${dealerHandStrArr}`);
-      addTextBox(`Dealer has${dealerHandStrArr}`, 2);
+      addTextBox(`Dealer has${dealerHandStrArr}`);
     }
 
     initButton() {
       this.dealerButton = players.length - 1;
 
-      console.log(`Player ${this.dealerButton + 1} has the dealer button!`);
-      addTextBox(`Player ${this.dealerButton + 1} has the dealer button!`, 2);
+      console.log(`${playersId[this.dealerButton]} has the dealer button!`);
+      addTextBox(`${playersId[this.dealerButton]} has the dealer button!`);
     }
 
     initBlindNPlyrTurn() {
@@ -1800,8 +1720,14 @@ const initDealer = function () {
       // dealer also verifies it's player's turn, necessary for player rotation
       this.plyrTurn = this.smallBlindPlyr;
 
-      console.log(`Player ${this.smallBlindPlyr + 1} place a small blind!!`);
-      addTextBox(`Player ${this.smallBlindPlyr + 1} place a small blind!`, 2);
+      console.log(
+        `${
+          playersId[this.smallBlindPlyr]
+        } please place a small blind!! (!bet 1)`
+      );
+      addTextBox(
+        `${playersId[this.smallBlindPlyr]} please place a small blind! (!bet 1)`
+      );
     }
 
     moveButton() {
@@ -1811,7 +1737,7 @@ const initDealer = function () {
       if (nextBtnPosition < 0) {
         this.dealerButton = players.length - 1;
         console.log(`Button is with ${players[this.dealerButton].playerNo}`);
-        addTextBox(`Button is with ${players[this.dealerButton].playerNo}`, 2);
+        addTextBox(`Button is with ${players[this.dealerButton].playerNo}`);
 
         return;
       }
@@ -1819,7 +1745,7 @@ const initDealer = function () {
       this.dealerButton = nextBtnPosition;
 
       console.log(`Button is with ${players[this.dealerButton].playerNo}`);
-      addTextBox(`Button is with ${players[this.dealerButton].playerNo}`, 2);
+      addTextBox(`Button is with ${players[this.dealerButton].playerNo}`);
     }
 
     setNoPlyrs() {
@@ -1870,10 +1796,12 @@ const initDealer = function () {
       }
 
       console.log(`${players[i].playerNo} it's a new round! Place your bets!`);
-      addTextBox(
-        `${players[i].playerNo} it's a new round! Place your bets!`,
-        1
-      );
+      addTextBox(`${players[i].playerNo} it's a new round! Place your bets!`);
+      dealerTimer = setTimeout(() => {
+        addTextBox(`Dealer folded ${players[i].playerNo}, 5 min violation!`);
+
+        players[dealer.plyrTurn].fold();
+      }, 300000);
     }
 
     setGameState(n) {
@@ -1939,8 +1867,15 @@ const initDealer = function () {
       ) {
         players[i].startTurn = true;
         // console.log(`${players[i].playerNo} ${players[i].startTurn}`);
-        console.log(`${players[i].playerNo} start the bet! Place your bet!`);
-        addTextBox(`${players[i].playerNo} start the bet! Place your bet!`, 2);
+        console.log(`${players[i].playerNo} start the bet! 5 min countdown!`);
+        addTextBox(`${players[i].playerNo} start the bet! 5 min countdown!`);
+
+        // time for players to make a move (5min), players cancel timer when a move is made, otherwise dealer will fold player
+        dealerTimer = setTimeout(() => {
+          addTextBox(`Dealer folded ${players[i].playerNo}, 5 min violation!`);
+
+          players[dealer.plyrTurn].fold();
+        }, 300000);
       }
 
       // if all players hav e placed at least 1 bet in this round, and checkAllIn still returns this.betCompleted to be true, then evaluate game
@@ -1983,8 +1918,7 @@ const initDealer = function () {
           );
 
           addTextBox(
-            `All players meet call $${dealer.minCall}, starting next round..`,
-            2
+            `All players meet call $${dealer.minCall}, starting next round..`
           );
 
           // reset values for new betting round
@@ -2026,8 +1960,7 @@ const initDealer = function () {
         "All players placed their bets, dealer checking if players went all in or call is met..."
       );
       addTextBox(
-        "All players placed their bets, dealer checking if players went all in or call is met...",
-        2
+        "All players placed their bets, dealer checking if players went all in or call is met..."
       );
 
       // let loop be clockwise, starting with dealer's button
@@ -2041,7 +1974,7 @@ const initDealer = function () {
 
           // find all other players that do not meet call
           if (
-            players[x].currBet < dealer.minCall ||
+            players[x].currBet < dealer.minCall &&
             players[x].allIn === false
           ) {
             console.log(`Prompting ${players[x].playerNo} to call or fold...`);
@@ -2058,8 +1991,7 @@ const initDealer = function () {
                 players[x].playerNo
               }, meet raised amount, go ALL IN or fold! Add ${
                 dealer.minCall - players[x].currBet
-              } to stay in the game!`,
-              2
+              } to stay in the game!`
             );
 
             // if players don't meet call, they are still in the round
@@ -2107,8 +2039,7 @@ const initDealer = function () {
         "All players placed their bets, dealer checking if call is met..."
       );
       addTextBox(
-        "All players placed their bets, dealer checking if call is met...",
-        2
+        "All players placed their bets, dealer checking if call is met..."
       );
 
       // let loop be clockwise, starting with dealer's button
@@ -2132,8 +2063,7 @@ const initDealer = function () {
             addTextBox(
               `${players[x].playerNo}, meet raised amount or fold! Add ${
                 dealer.minCall - players[x].currBet
-              } to stay in the game!`,
-              2
+              } to stay in the game!`
             );
 
             // if players don't meet call, they are still in the round
@@ -2175,8 +2105,7 @@ const initDealer = function () {
           `${players[i].playerNo} wins the pot! $$$$$${dealer.pot}$$$$$`
         );
         addTextBox(
-          `${players[i].playerNo} wins the pot! $$$$$${dealer.pot}$$$$$`,
-          2
+          `${players[i].playerNo} wins the pot! $$$$$${dealer.pot}$$$$$`
         );
       }
 
@@ -2185,8 +2114,7 @@ const initDealer = function () {
           `${players[i].playerNo} splits the pot! $$$$$${dealer.pot}$$$$$`
         );
         addTextBox(
-          `${players[i].playerNo} splits the pot! $$$$$${dealer.pot}$$$$$`,
-          2
+          `${players[i].playerNo} splits the pot! $$$$$${dealer.pot}$$$$$`
         );
       }
 
@@ -2196,60 +2124,77 @@ const initDealer = function () {
       // gameInfoPot.innerHTML = `Current Pot: ${dealer.pot}`;
       // cardCurBal[i].innerHTML = `Balance: ${players[i].chips.currBal}`;
     }
+  })();
+};
 
-    startNewGame() {
-      console.log(`Reshuffling cards..`);
-      addTextBox(`Reshuffling cards...`, 2);
+const startNewGame = function () {
+  console.log(`Reshuffling cards..`);
+  addTextBox(`Reshuffling cards...`);
 
-      activePlayers = players.length;
-      evalPlayer = [];
-      stalePlayer = [];
-      muckPlayer = [];
-      muckCards = [];
-      deck = [];
+  activePlayers = 0;
 
-      generateDeck(suit, rank);
-      fisYatesShuff();
-
-      for (let i = 0; i < players.length; i++) {
-        players[i].hand = [];
-        players[i].currBet = 0;
-        players[i].active = true;
-        players[i].betRound = true;
-        players[i].startTurn = false;
-        players[i].allIn = false;
-
-        console.log(`${players[i].playerNo} get ready for the next round!`);
-        addTextBox(`${players[i].playerNo} get ready for the next round!`, 1);
+  players.forEach((player) => {
+    // if there are new playerId then create new player Class
+    playersId.forEach((ele) => {
+      if (player.playerNo !== ele) {
+        players.push(new PlayerCl(`${ele}`));
       }
+    });
 
-      dealer.hand = [];
-      dealer.betCompleted = false;
-      dealer.pot = 0;
-      dealer.minCall = 0;
-      dealer.allIn = false;
+    if (player.active === true) {
+      activePlayers += 1;
+    }
+  });
+  evalPlayer = [];
+  stalePlayer = [];
+  muckPlayer = [];
+  muckCards = [];
+  deck = [];
 
-      dealer.moveButton();
+  generateDeck(suit, rank);
+  fisYatesShuff();
 
-      dealCard(activePlayers);
-      dealCard(activePlayers);
+  for (let i = 0; i < players.length; i++) {
+    players[i].hand = [];
+    players[i].currBet = 0;
+    // players[i].active = true;
+    players[i].betRound = true;
+    players[i].startTurn = false;
+    players[i].allIn = false;
+
+    console.log(`${players[i].playerNo} get ready for the next round!`);
+    addTextBox(`${players[i].playerNo} get ready for the next round!`);
+  }
+
+  dealer.hand = [];
+  dealer.betCompleted = false;
+  dealer.pot = 0;
+  dealer.minCall = 0;
+  dealer.allIn = false;
+
+  dealer.moveButton();
+
+  dealCard(activePlayers);
+  dealCard(activePlayers);
+  players.forEach((player) => {
+    if (player.active === true) {
       for (let i = 0; i < players.length; i++) {
         players[i].showHand();
       }
-      dealer.initBlindNPlyrTurn();
-      dealer.setGameState(4);
     }
-  })();
+  });
+  dealer.initBlindNPlyrTurn();
+  dealer.setGameState(4);
 };
 
 // Initialize number of players
 const initPlayers = function (nPlayers) {
   // Initialize n number of players
   for (let i = 0; i < nPlayers; i++) {
-    players[i] = new PlayerCl(`Player ${i + 1}`);
+    players[i] = new PlayerCl(`${playersId[i]}`);
   }
 
-  addTextBox(`${nPlayers} players initialized`, 1);
+  addTextBox(`${nPlayers} players initialized`);
 
   // placed here temporarily
   // updateUI.initUI();
@@ -2290,7 +2235,7 @@ const dealerRiver = function () {
 // To initialize game, generate deck and shuffle
 const initGame = function () {
   if (gameState === gameStateArr[0]) {
-    addTextBox("Initializing game", 1);
+    addTextBox("Initializing game");
     generateDeck(suit, rank);
 
     fisYatesShuff();
@@ -2299,8 +2244,8 @@ const initGame = function () {
     // Initialize dealer
     initDealer();
 
-    addTextBox("Done, lets play!", 1);
-    addTextBox("Select number of players", 1);
+    addTextBox("Done, lets play!");
+    addTextBox("Select number of players");
 
     console.log(deck);
 
@@ -2362,25 +2307,34 @@ const evaluateCards = function () {
   evalPlayer.forEach((val, i) => console.log(evalPlayer[i]));
 };
 
-const initPlayersId = function (playerId) {
-  console.log(playerId);
+const fetchGameState = function () {
+  return gameStateArr.indexOf(gameState);
+};
 
-  playersId.push(playerId);
-  console.log(playersId);
+const initGamemaster = function (gmId) {
+  gamemaster = gmId;
+};
+
+const initPlayersId = function (user) {
+  if (playersId.includes(user.id)) {
+    players.forEach((player) => {
+      if (player.playerNo === user.id) {
+        player.active = true;
+      }
+    });
+    return;
+  }
+
+  playersId.push(user.id);
+  playersUsername.push(user.username);
 };
 
 const initGameSession = function (gameSession) {
+  gameSessionId = gameSession;
+
   // pass in parameter players as an array to store as a variable here in memory
 
   // initialize players and start setInterval
-  if (gameState === gameState[0]) {
-    gameSessionId = gameSession;
-    // read gameSession json and initialize players
-    generateDeck(suit, rank);
-    initDealer();
-    dealer.setGameState(1);
-  }
-
   // gameCounter++;
   // console.log(`Game No.${gameCounter}`);
   // addTextBox(`Game No.${gameCounter}`, 2);
@@ -2388,6 +2342,7 @@ const initGameSession = function (gameSession) {
   // gameInfoNo.innerHTML = `Game No: ${gameCounter}`;
 
   if (gameState === gameStateArr[0]) {
+    // console.log(`Game session ID is ${gameSessionId}`);
     initDealer();
     dealer.setGameState(1);
   }
@@ -2397,8 +2352,7 @@ const initGameSession = function (gameSession) {
       `there's an on-going game, please complete game before starting a new game`
     );
     addTextBox(
-      `there's an on-going game, please complete game before starting a new game`,
-      2
+      `there's an on-going game, please complete game before starting a new game`
     );
 
     return;
@@ -2492,7 +2446,7 @@ const initGameSession = function (gameSession) {
         players[i].showHand();
       }
 
-      // updateUI.updatePlayerCardsUI();
+      addTextBox("Cards distributed, check DM");
 
       dealer.initBlindNPlyrTurn();
 
@@ -2609,16 +2563,28 @@ const initGameSession = function (gameSession) {
 
         endGame();
       }
+
+      players.forEach((player) => {
+        player.active = false;
+      });
+
+      updateTable();
     }
   }
 };
 
 const parseCommand = function (gameSession, playerId, gameCommand) {
+  console.log(`Parsing ${gameSession}, ${playerId}, ${gameCommand}`);
+  console.log(`Game Session ID = ${gameSessionId}`);
+  console.log(playersId);
+
   if (gameSessionId !== gameSession) {
     return;
   }
 
-  if (!playersId.find(playerId)) {
+  if (playerId !== playersId.find((ele) => ele === playerId)) {
+    console.log(`${playerId} is not a player`);
+    channelMsg(`${playerId} you're not in this round!`);
     return;
   }
 
@@ -2631,6 +2597,12 @@ const parseCommand = function (gameSession, playerId, gameCommand) {
     betValue = gameCommand.replace("!bet ", "");
     betType = "bet";
     message = "placed a bet";
+  }
+
+  if (gameCommand.includes("!check")) {
+    betValue = gameCommand.replace("!check ", "");
+    betType = "check";
+    message = "checked";
   }
 
   if (gameCommand.includes("!call")) {
@@ -2651,11 +2623,41 @@ const parseCommand = function (gameSession, playerId, gameCommand) {
     betType = "fold";
   }
 
-  if (!Number(betValue).isInteger()) {
-    return;
+  if (gameCommand.includes("!kick")) {
+    if (playerId !== gamemaster) return;
+
+    let playerIndex;
+
+    playersId.forEach((userID, i) => {
+      if (playerId !== userID) {
+        if (gameCommand.includes(userID)) {
+          playerIndex = i;
+        }
+      }
+    });
+
+    players[i].fold;
+    addTextBox(`${playerId} has kicked ${playersUsername[i]}`);
   }
 
-  gameComms(gameSession, playerId, message);
+  if (gameCommand.includes("!endgame")) {
+    if (playerId !== gamemaster) {
+      addTextBox("You're not the Game Master");
+      return;
+    }
+
+    addTextBox(`Ending game`);
+    dealer.setGameState(12);
+  }
+
+  console.log(betValue, betType);
+  if (betType === "bet") {
+    if (!Number.isInteger(Number(betValue))) {
+      return;
+    }
+  }
+
+  channelMsg(message, playerId, gameSession);
 
   if (betType === "bet") {
     if (
@@ -2675,20 +2677,33 @@ const parseCommand = function (gameSession, playerId, gameCommand) {
     }
   }
 
+  if (betType === "check") {
+    players[i].check();
+  }
+
   if (betType === "call") {
     betValue = dealer.minCall - players[i].currBet;
+    console.log(`Call ${betValue}`);
     players[i].bets(betValue);
   }
 
-  if (betType === "call") {
-    // call
+  if (betType === "allin") {
     betValue = players[i].chips.currBal;
+    console.log(`All in ${betValue}`);
     players[i].bets(betValue);
   }
 
-  if (betType === "call") {
+  if (betType === "fold") {
+    console.log(`Folded`);
     players[i].fold();
   }
 };
 
-module.exports = { initPlayersId, initGameSession, parseCommand };
+module.exports = {
+  initPlayersId,
+  initGameSession,
+  parseCommand,
+  initGamemaster,
+  fetchGameState,
+  startNewGame,
+};

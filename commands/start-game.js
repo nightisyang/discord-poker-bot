@@ -3,7 +3,6 @@ const path = require("node:path");
 
 const { SlashCommandBuilder } = require("@discordjs/builders");
 const { json } = require("express");
-const { fetchChannel } = require("../gameComms/gameMsg");
 
 // const { initGameSession, parseCommand } = require("../game/poker.js");
 
@@ -23,19 +22,34 @@ module.exports = {
 
     let channel = interaction.channel;
 
-    fetchChannel(channel);
-
     const pokerPath = path.join(__dirname, "..", "game", `${channel.id}.js`);
+    const gameCommsPath = path.join(
+      __dirname,
+      "..",
+      "gameComms",
+      `${channel.id}.js`
+    );
 
     fs.copyFileSync(path.join(__dirname, "..", "game", "poker.js"), pokerPath);
+    fs.copyFileSync(
+      path.join(__dirname, "..", "gameComms", "gameMsg.js"),
+      gameCommsPath
+    );
+
+    const { fetchChannel } = require(gameCommsPath);
+
+    fetchChannel(channel);
 
     const {
       initPlayersId,
+      initGameSessionId,
       initGameSession,
       initGamemaster,
       fetchGameState,
       startNewGame,
     } = require(pokerPath);
+
+    initGameSessionId(channel.id);
 
     const gameState = fetchGameState();
 
@@ -122,8 +136,7 @@ module.exports = {
 
             usersArr.forEach((user) => initPlayersId(user));
             // initPlayersId(...userID);
-            console.log(channel.id);
-            initGameSession(channel.id);
+            initGameSession();
 
             if (gameState === 12) {
               startNewGame();

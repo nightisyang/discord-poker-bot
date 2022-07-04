@@ -25,6 +25,7 @@ module.exports = {
 
         // folder path where game session data are kept
         const gameSessionFolderPath = path.join(__dirname, "..", "gameSession");
+        const gameCommsFolderPath = path.join(__dirname, "..", "gameComms");
         const gameJsFolderPath = path.join(__dirname, "..", "game");
 
         const deleteFile = function (folderPath) {
@@ -39,6 +40,10 @@ module.exports = {
               filePath = path.join(folderPath, `${channel.id}.js`);
             }
 
+            if (folderPath === gameCommsFolderPath) {
+              filePath = path.join(folderPath, `${channel.id}.js`);
+            }
+
             if (err) console.log(err);
             else {
               // looping through each file
@@ -47,7 +52,7 @@ module.exports = {
                 const filename = file.substring(0, file.lastIndexOf("."));
 
                 // if channel.id is the same as filaname - delete file
-                if ((channel.id = filename)) {
+                if (channel.id === filename) {
                   fs.unlink(filePath, (err) => {
                     if (err) {
                       console.error(err);
@@ -61,6 +66,7 @@ module.exports = {
         };
 
         deleteFile(gameSessionFolderPath);
+        deleteFile(gameCommsFolderPath);
         deleteFile(gameJsFolderPath);
 
         // read contents of folder

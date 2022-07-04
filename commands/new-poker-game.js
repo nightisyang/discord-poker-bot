@@ -28,28 +28,28 @@ module.exports = {
     // embedded message
     const embed = new Discord.MessageEmbed()
       .setColor("#0099ff")
-      .setTitle("Texas Hold 'em Poker Bot.")
-      .setURL("https://discord.js.org/")
+      .setTitle("Learn basics of poker.")
+      .setURL("https://www.wikihow.com/Play-Poker")
       .setAuthor({
-        name: "Some name",
+        name: "Texas Hold 'em Poker Bot.",
         iconURL: "https://i.imgur.com/AfFp7pu.png",
-        url: "https://discord.js.org",
+        url: "https://www.wikihow.com/Play-Poker",
       })
       .setDescription(
         "Click on ✅ to join and use /start-game when players are ready."
       )
-      .setThumbnail("https://i.imgur.com/AfFp7pu.png")
-      .addFields(
-        { name: "Regular field title", value: "Some value here" },
-        { name: "\u200B", value: "\u200B" },
-        { name: "Inline field title", value: "Some value here", inline: true },
-        { name: "Inline field title", value: "Some value here", inline: true }
-      )
-      .addField("Inline field title", "Some value here", true)
-      .setImage("https://i.imgur.com/AfFp7pu.png")
+      // .setThumbnail("https://i.imgur.com/AfFp7pu.png")
+      // .addFields(
+      //   { name: "Regular field title", value: "Some value here" },
+      //   { name: "\u200B", value: "\u200B" },
+      //   { name: "Inline field title", value: "Some value here", inline: true },
+      //   { name: "Inline field title", value: "Some value here", inline: true }
+      // )
+      // .addField("Inline field title", "Some value here", true)
+      .setImage("https://i.postimg.cc/hvzMd7J8/poker.jpg")
       .setTimestamp()
       .setFooter({
-        text: "Some footer text here",
+        text: "",
         iconURL: "https://i.imgur.com/AfFp7pu.png",
       });
 

@@ -1,12 +1,6 @@
 "use strict";
-
-const {
-  channelMsg,
-  directMsg,
-  embedTableMsg,
-  fetchUsername,
-  embedNewGame,
-} = require("../gameComms/gameMsg.js");
+const fs = require("fs");
+const path = require("node:path");
 
 // DOM Elements
 // const btnInit = document.querySelector(".btn-init");
@@ -61,6 +55,26 @@ let playersId = [];
 let playersUsername = [];
 let dealerTimer;
 let gamemaster;
+let gameCommsFilePath;
+
+const initGameSessionId = function (gameSession) {
+  gameSessionId = gameSession;
+
+  gameCommsFilePath = path.join(
+    __dirname,
+    "..",
+    "gameComms",
+    `${gameSessionId}.js`
+  );
+
+  var {
+    channelMsg,
+    directMsg,
+    embedTableMsg,
+    fetchUsername,
+    embedNewGame,
+  } = require(gameCommsFilePath);
+};
 
 const gameStateArr = [
   "reset",
@@ -181,8 +195,7 @@ const updateTable = function () {
     //   icon_url: "https://i.imgur.com/AfFp7pu.png",
     //   url: "https://discord.js.org",
     // },
-    description:
-      "Click on ✅ to join and use /start-game when players are ready.\n!bet <value> !call !check !allin !fold ",
+    description: "Use !bet <value> !call !check !allin !fold to play",
     // thumbnail: {
     //   url: "https://i.imgur.com/AfFp7pu.png",
     // },
@@ -192,7 +205,7 @@ const updateTable = function () {
     // },
     timestamp: new Date(),
     footer: {
-      text: "Some footer text here",
+      text: "",
       icon_url: "https://i.imgur.com/AfFp7pu.png",
     },
   };
@@ -218,20 +231,20 @@ const updateTable = function () {
       inline: true,
     },
     {
-      name: "Community Cards", // Community Cards
-      value: `${dealerHandStrArr.toString()}`, // Community Cards
-      inline: true,
-    },
-    {
       name: "Call", // Call
       value: `Min Call: ${dealer.minCall}`, // min call
       inline: true,
     },
     {
-      name: "\u200b",
-      value: "\u200b",
-      inline: false,
+      name: "Community Cards", // Community Cards
+      value: `${dealerHandStrArr.toString()}`, // Community Cards
+      // inline: true,
     },
+    // {
+    //   name: "\u200b",
+    //   value: "\u200b",
+    //   inline: false,
+    // },
   ];
 
   dealerInfo.forEach((obj) => {
@@ -241,7 +254,7 @@ const updateTable = function () {
   players.forEach((player, i) => {
     if (player.active === true) {
       embedTable.fields.push({
-        name: `${playersUsername[i]} Current Bet/Balance`,
+        name: `${playersUsername[i]}`,
         value: `Current Bet: ${player.currBet} Balance: ${player.chips.currBal}`,
         inline: true,
       });
@@ -253,6 +266,8 @@ const updateTable = function () {
   embedTableMsg(embedTable, gameSessionId);
 
   if (gameState === gameStateArr[12]) {
+    embedTable.description =
+      "Click on ✅ to join and use /start-game when players are ready.";
     embedNewGame(embedTable, gameSessionId);
   }
 };
@@ -320,7 +335,6 @@ const PlayerCl = class {
 
       // set betRound to false
       // this.plyrCompleteBetRound(); --> not necessary as small blind player will always have to call, will only complete bet round after calling
-      updateTable();
 
       this.plyrEndTurn();
     }
@@ -359,8 +373,6 @@ const PlayerCl = class {
 
       // deduct current balance
       this.chips.currBal -= bigBlindAmount;
-
-      updateTable();
 
       // set betRound to false
       this.plyrCompleteBetRound();
@@ -415,8 +427,6 @@ const PlayerCl = class {
       dealer.pot += allInAmount;
       dealer.potMov.amount.push(allInAmount);
       dealer.potMov.player.push(this.playerNo);
-
-      updateTable();
 
       // set betRound to false
       this.plyrCompleteBetRound();
@@ -561,8 +571,6 @@ const PlayerCl = class {
         dealer.potMov.amount.push(betAmount);
         dealer.potMov.player.push(this.playerNo);
 
-        updateTable();
-
         // set betRound to false
         this.plyrCompleteBetRound();
 
@@ -665,8 +673,6 @@ const PlayerCl = class {
         dealer.potMov.amount.push(raiseAmount);
         dealer.potMov.player.push(this.playerNo);
 
-        updateTable();
-
         // set betRound to false
         this.plyrCompleteBetRound();
 
@@ -730,8 +736,6 @@ const PlayerCl = class {
       console.log(`${this.playerNo} has folded!`);
       addTextBox(`${this.playerNo} has folded!`);
 
-      updateTable();
-
       // set betRound to false
       this.plyrCompleteBetRound();
 
@@ -750,8 +754,6 @@ const PlayerCl = class {
     this.chips.movement.push(0);
     this.chips.movType.push("Check");
 
-    updateTable();
-
     // set betRound to false
     this.plyrCompleteBetRound();
 
@@ -762,6 +764,7 @@ const PlayerCl = class {
   plyrEndTurn() {
     // end turn and ask dealer to start next player's turn
     this.startTurn = false;
+    updateTable();
     clearTimeout(dealerTimer);
     dealer.startNextPlyrTurn();
   }
@@ -1795,6 +1798,8 @@ const initDealer = function () {
         return;
       }
 
+      updateTable();
+
       console.log(`${players[i].playerNo} it's a new round! Place your bets!`);
       addTextBox(`${players[i].playerNo} it's a new round! Place your bets!`);
       dealerTimer = setTimeout(() => {
@@ -2178,9 +2183,7 @@ const startNewGame = function () {
   dealCard(activePlayers);
   players.forEach((player) => {
     if (player.active === true) {
-      for (let i = 0; i < players.length; i++) {
-        players[i].showHand();
-      }
+      player.showHand();
     }
   });
   dealer.initBlindNPlyrTurn();
@@ -2329,9 +2332,7 @@ const initPlayersId = function (user) {
   playersUsername.push(user.username);
 };
 
-const initGameSession = function (gameSession) {
-  gameSessionId = gameSession;
-
+const initGameSession = function () {
   // pass in parameter players as an array to store as a variable here in memory
 
   // initialize players and start setInterval
@@ -2626,18 +2627,14 @@ const parseCommand = function (gameSession, playerId, gameCommand) {
   if (gameCommand.includes("!kick")) {
     if (playerId !== gamemaster) return;
 
-    let playerIndex;
-
     playersId.forEach((userID, i) => {
-      if (playerId !== userID) {
+      if (gamemaster !== userID) {
         if (gameCommand.includes(userID)) {
-          playerIndex = i;
+          players[i].fold();
+          addTextBox(`${playerId} has kicked ${playersUsername[i]}`);
         }
       }
     });
-
-    players[i].fold;
-    addTextBox(`${playerId} has kicked ${playersUsername[i]}`);
   }
 
   if (gameCommand.includes("!endgame")) {
@@ -2701,6 +2698,7 @@ const parseCommand = function (gameSession, playerId, gameCommand) {
 
 module.exports = {
   initPlayersId,
+  initGameSessionId,
   initGameSession,
   parseCommand,
   initGamemaster,

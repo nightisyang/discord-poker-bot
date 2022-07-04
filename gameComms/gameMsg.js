@@ -83,10 +83,14 @@ const embedNewGame = async function (embed, gameSessionId) {
 
   await client.channels.fetch(gameSessionId).then((channel) => {
     channelId = channel.id;
-    channel.send({ embeds: [embed] }).then((embedMsg) => {
-      embedMsgId = embedMsg.id;
-      embedMsg.react("✅");
-    });
+    channel
+      .send({ embeds: [embed] })
+      .then((embedMsg) => {
+        embedMsg.react("✅");
+
+        return embedMsg;
+      })
+      .then((embedMsg) => (embedMsgId = embedMsg.id));
   });
 
   const filePath = path.join(
@@ -99,9 +103,6 @@ const embedNewGame = async function (embed, gameSessionId) {
   const json = fs.readFileSync(filePath, "utf8", (err, data) => {
     if (err) {
       console.error(err);
-      interaction.reply(
-        `Game session doesn't exist, please use /start-game only in #game channels`
-      );
       return;
     }
   });

@@ -1,5 +1,5 @@
 # discord-poker-bot
-Working beta implementing [basic poker](https://github.com/nightisyang/basic-poker) as a discord bot.  
+Working beta implementation of [basic poker](https://github.com/nightisyang/basic-poker) as a discord bot.  
   
 Using discord API to
 - Create game channel
